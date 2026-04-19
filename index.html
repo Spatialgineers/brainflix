@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BrainFlix | Streaming</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { 
+            background-color: #050505; 
+            color: #fff; 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+            margin: 0;
+            overflow: hidden; /* Evita scrollbars en pantalla completa */
+        }
+
+        /* Branding BrainFlix: Neural Pink/Red */
+        .brand-text { color: #f43f5e; }
+        .brand-bg { background-color: #f43f5e; }
+        .brand-hover:hover { background-color: #e11d48; }
+
+        /* Custom Video Player Overlay */
+        .player-container { position: relative; width: 100%; height: 75vh; background: #000; }
+        video { width: 100%; height: 100%; object-fit: cover; }
+        
+        .player-overlay {
+            position: absolute;
+            bottom: 0; left: 0; width: 100%;
+            background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0) 100%);
+            padding: 40px 40px 20px 40px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .player-container:hover .player-overlay, 
+        .player-container.paused .player-overlay {
+            opacity: 1;
+        }
+
+        /* Controles Limpios */
+        .control-btn {
+            background: none; border: none; color: white; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            transition: transform 0.1s;
+        }
+        .control-btn:active { transform: scale(0.9); }
+        .control-btn svg { width: 32px; height: 32px; fill: white; }
+
+        .progress-bar {
+            width: 100%; height: 4px; background: rgba(255,255,255,0.2);
+            border-radius: 2px; cursor: pointer; position: relative;
+        }
+        .progress-fill {
+            height: 100%; background: #f43f5e; border-radius: 2px; width: 0%;
+            transition: width 0.1s linear;
+        }
+    </style>
+</head>
+<body class="flex flex-col h-screen">
+
+    <header class="absolute top-0 w-full z-50 p-6 flex justify-between items-center bg-gradient-to-b from-black/80 to-transparent">
+        <div class="flex items-center gap-8">
+            <h1 class="text-3xl font-extrabold tracking-tighter brand-text italic">BrainFlix</h1>
+            <nav class="hidden md:flex gap-6 text-sm font-semibold text-gray-300">
+                <span class="text-white cursor-pointer">Inicio</span>
+                <span class="hover:text-white cursor-pointer transition-colors">Series</span>
+                <span class="hover:text-white cursor-pointer transition-colors">Películas</span>
+                <span class="hover:text-white cursor-pointer transition-colors">Mi Lista</span>
+            </nav>
+        </div>
+        <div class="flex items-center gap-6">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            <div class="w-8 h-8 rounded bg-gradient-to-tr from-rose-500 to-purple-600 border border-white/20"></div>
+        </div>
+    </header>
+
+    <main class="player-container paused" id="player-wrapper">
+        <video id="main-video" playsinline>
+            <source src="" type="video/mp4">
+        </video>
+
+        <div class="player-overlay">
+            <div class="progress-bar" id="progress-container">
+                <div class="progress-fill" id="progress-bar"></div>
+            </div>
+            
+            <div class="flex justify-between items-end">
+                <div class="flex items-center gap-6">
+                    <button class="control-btn" id="play-btn">
+                        <svg viewBox="0 0 24 24" id="play-icon"><path d="M8 5v14l11-7z"/></svg>
+                        <svg viewBox="0 0 24 24" id="pause-icon" class="hidden"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                    </button>
+                    <button class="control-btn" id="skip-btn" title="Siguiente Episodio">
+                        <svg viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+                    </button>
+                    <button class="control-btn hidden md:block">
+                        <svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+                    </button>
+                    
+                    <div class="ml-4">
+                        <h2 class="text-2xl font-bold text-white shadow-black drop-shadow-md" id="video-title">Cargando...</h2>
+                        <p class="text-sm text-gray-300 font-medium" id="video-subtitle">T1:E1</p>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-4">
+                    <button class="control-btn">
+                        <svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <section class="flex-1 bg-[#111] p-8 overflow-y-auto">
+        <h3 class="text-lg font-bold text-gray-400 mb-4 tracking-wide uppercase">Siguiente en la lista</h3>
+        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4" id="queue-container">
+            </div>
+    </section>
+
+    <script>
+        /* ==========================================
+           ⚙️ DATABASE: CONFIGURA TUS VIDEOS AQUÍ
+           ========================================== */
+        const videoDatabase = [
+            {
+                id: 1,
+                title: "Protocolo de Ignición",
+                subtitle: "T1:E1 • 45m",
+                src: "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+                thumb: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=600"
+            },
+            {
+                id: 2,
+                title: "Fallo en el Sistema",
+                subtitle: "T1:E2 • 42m",
+                src: "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4",
+                thumb: "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?q=80&w=600"
+            },
+            {
+                id: 3,
+                title: "La Última Malla",
+                subtitle: "T1:E3 • 50m",
+                src: "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+                thumb: "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?q=80&w=600"
+            }
+        ];
+
+        /* ==========================================
+           LÓGICA DEL REPRODUCTOR (CORE ENGINE)
+           ========================================== */
+        let currentIndex = 0;
+        const video = document.getElementById('main-video');
+        const playBtn = document.getElementById('play-btn');
+        const skipBtn = document.getElementById('skip-btn');
+        const playIcon = document.getElementById('play-icon');
+        const pauseIcon = document.getElementById('pause-icon');
+        const progressBar = document.getElementById('progress-bar');
+        const playerWrapper = document.getElementById('player-wrapper');
+        const queueContainer = document.getElementById('queue-container');
+
+        function loadVideo(index) {
+            const data = videoDatabase[index];
+            video.src = data.src;
+            document.getElementById('video-title').textContent = data.title;
+            document.getElementById('video-subtitle').textContent = data.subtitle;
+            renderQueue();
+            
+            // Auto-play al cargar nuevo video (excepto el primero al iniciar la página por políticas del navegador)
+            if (index > 0) {
+                video.play();
+                updatePlayState();
+            }
+        }
+
+        function renderQueue() {
+            queueContainer.innerHTML = '';
+            videoDatabase.forEach((v, i) => {
+                if (i === currentIndex) return; // No mostrar el actual en la fila
+                queueContainer.innerHTML += `
+                    <div class="cursor-pointer group" onclick="jumpTo(${i})">
+                        <div class="aspect-video bg-gray-800 rounded-md overflow-hidden relative mb-2 border border-transparent group-hover:border-rose-500 transition-colors">
+                            <img src="${v.thumb}" class="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity">
+                            <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40">
+                                <svg width="32" height="32" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg>
+                            </div>
+                        </div>
+                        <h4 class="text-sm font-semibold text-gray-200 group-hover:text-white">${v.title}</h4>
+                        <p class="text-xs text-gray-500">${v.subtitle}</p>
+                    </div>
+                `;
+            });
+        }
+
+        function togglePlay() {
+            if (video.paused) {
+                video.play();
+            } else {
+                video.pause();
+            }
+            updatePlayState();
+        }
+
+        function updatePlayState() {
+            if (video.paused) {
+                playIcon.classList.remove('hidden');
+                pauseIcon.classList.add('hidden');
+                playerWrapper.classList.add('paused');
+            } else {
+                playIcon.classList.add('hidden');
+                pauseIcon.classList.remove('hidden');
+                playerWrapper.classList.remove('paused');
+            }
+        }
+
+        function skipVideo() {
+            currentIndex = (currentIndex + 1) % videoDatabase.length; // Loop back al inicio
+            loadVideo(currentIndex);
+            video.play();
+            updatePlayState();
+        }
+
+        function jumpTo(index) {
+            currentIndex = index;
+            loadVideo(currentIndex);
+            video.play();
+            updatePlayState();
+        }
+
+        // Actualizar barra de progreso
+        video.addEventListener('timeupdate', () => {
+            const percentage = (video.currentTime / video.duration) * 100;
+            progressBar.style.width = `${percentage}%`;
+        });
+
+        // Event Listeners (Botones)
+        playBtn.addEventListener('click', togglePlay);
+        skipBtn.addEventListener('click', skipVideo);
+        video.addEventListener('click', togglePlay);
+        video.addEventListener('ended', skipVideo);
+
+        // --- ACTING HOOKS (Teclado para el Set) ---
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                e.preventDefault(); // Evita que la página haga scroll
+                togglePlay();
+            }
+            if (e.code === 'ArrowRight') {
+                skipVideo();
+            }
+        });
+
+        // Init
+        loadVideo(0);
+    </script>
+</body>
+</html>
